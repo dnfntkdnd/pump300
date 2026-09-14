@@ -197,7 +197,7 @@ canvas.pick{cursor:pointer}
     </div>
     <div class="foot"><span class="lbl">단면</span><input type="range" id="section" min="0" max="100" value="100" aria-label="단면 위치"><span class="num" id="section-out">닫힘</span><span class="sep"></span><span class="lbl">속도</span><input type="range" id="rpm" min="5" max="120" value="45" aria-label="회전 속도"><span class="num" id="rpm-out">45 rpm</span></div>
     <div class="hint">드래그 회전 · 휠 확대 · 오른쪽 드래그 이동 · 운전 시 회전 방향은 구동측에서 시계방향</div>
-    <div class="flowlegend" id="flowlegend" hidden><div class="fl-t">물길 · 유선 모델 (CFD 아님)</div><div class="fl-bar"></div><div class="fl-s"><span>0</span><span>속도 m/s (1,780 rpm · 150 m³/h 기준)</span><span>20+</span></div><div class="fl-n">재생은 슬로모션 · 분해 중에는 흐름을 숨깁니다</div></div>
+    <div class="flowlegend" id="flowlegend" hidden><div class="fl-t">물길 · 유선 모델 (CFD 아님)</div><div class="fl-bar"></div><div class="fl-s"><span>0</span><span id="fl-legend">속도 m/s (1,780 rpm · 150 m³/h 기준)</span><span id="fl-max">20+</span></div><div class="fl-n">재생은 슬로모션 · 분해 중에는 흐름을 숨깁니다</div></div>
     <div class="stagecredit">PUMP-300 · 한웅희 · synthetic model</div>
     <div class="tip" id="tip" hidden></div>
     <div class="info" id="info" hidden>
@@ -226,6 +226,8 @@ canvas.pick{cursor:pointer}
   var css = function (n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); };
   if (D.subtitle) document.getElementById("subtitle").textContent = D.subtitle;
   if (D.flow === false) document.getElementById("t-flow").hidden = true;
+  if (D.flowLegend) document.getElementById("fl-legend").textContent = D.flowLegend;
+  if (D.flowMax) document.getElementById("fl-max").textContent = D.flowMax + "+";
   var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /* ---- counter ---- */
@@ -489,10 +491,11 @@ canvas.pick{cursor:pointer}
   FL.w = FL.rpm / 60 * 2 * Math.PI;
   FL.vS = FL.Q / (Math.PI * FL.rPipe * FL.rPipe); FL.vD = FL.Q / (Math.PI * FL.rDis * FL.rDis);
   var fp = null, flowObj = null, fPos, fCol, fSeg, fSCol, fGeoP, fGeoL;
+  var BB2 = D.flowModel === "bb2", VMAX = D.flowMax || 20;
   function Rc(th) { var t = (th - FL.th0) / (2 * Math.PI - FL.th0); return 210 + 28 + 34 * t; }
   function rCh(th) { var t = (th - FL.th0) / (2 * Math.PI - FL.th0); return 28 + 34 * t - 8; }
   function speedColor(v, out, i) {
-    var t = Math.max(0, Math.min(1, v / 20)), r, g, b, k;
+    var t = Math.max(0, Math.min(1, v / VMAX)), r, g, b, k;
     if (t < 0.33) { k = t / 0.33; r = 0.18 + (0.13 - 0.18) * k; g = 0.42 + (0.77 - 0.42) * k; b = 0.90 + (0.84 - 0.90) * k; }
     else if (t < 0.66) { k = (t - 0.33) / 0.33; r = 0.13 + (0.95 - 0.13) * k; g = 0.77 + (0.82 - 0.77) * k; b = 0.84 + (0.29 - 0.84) * k; }
     else { k = (t - 0.66) / 0.34; r = 0.95 + (0.94 - 0.95) * k; g = 0.82 + (0.29 - 0.82) * k; b = 0.29 + (0.16 - 0.29) * k; }
@@ -503,9 +506,9 @@ canvas.pick{cursor:pointer}
     fp.r[i] = Math.sqrt(Math.random()) * 70; fp.a[i] = Math.random() * Math.PI * 2; fp.v[i] = FL.vS; fp.px[i] = NaN;
   }
   function flowInit() {
-    var N = FL.N;
-    fp = { st: new Uint8Array(N), x: new Float32Array(N), r: new Float32Array(N), a: new Float32Array(N), b: new Float32Array(N), c: new Float32Array(N), v: new Float32Array(N), px: new Float32Array(N), py: new Float32Array(N), pz: new Float32Array(N) };
-    for (var i = 0; i < N; i++) flowSpawn(i, true);
+    var N = BB2 ? FL2.N : FL.N;
+    fp = { st: new Uint8Array(N), x: new Float32Array(N), r: new Float32Array(N), a: new Float32Array(N), b: new Float32Array(N), c: new Float32Array(N), d: new Float32Array(N), e: new Float32Array(N), v: new Float32Array(N), px: new Float32Array(N), py: new Float32Array(N), pz: new Float32Array(N) };
+    for (var i = 0; i < N; i++) (BB2 ? spawnBB2 : flowSpawn)(i, true);
     fPos = new Float32Array(N * 3); fCol = new Float32Array(N * 3); fSeg = new Float32Array(N * 6); fSCol = new Float32Array(N * 6);
     fGeoP = new THREE.BufferGeometry(); fGeoP.setAttribute("position", new THREE.BufferAttribute(fPos, 3)); fGeoP.setAttribute("color", new THREE.BufferAttribute(fCol, 3));
     fGeoL = new THREE.BufferGeometry(); fGeoL.setAttribute("position", new THREE.BufferAttribute(fSeg, 3)); fGeoL.setAttribute("color", new THREE.BufferAttribute(fSCol, 3));
@@ -570,6 +573,103 @@ canvas.pick{cursor:pointer}
     fGeoP.computeBoundingSphere(); fGeoL.computeBoundingSphere();
   }
 
+
+  /* ---- BB2 two-stage streamline model (NOT CFD): suction pipe -> suction chamber -> stage 1
+     -> volute 1 -> crossover elbow -> stage-2 inlet chamber -> stage 2 -> volute 2 -> discharge */
+  var FL2 = { N: 3600, Q: 300 / 3600, rpm: 2980, rIn: 60, rOut: 207, b: 0.030, sweep: -100 * Math.PI / 180,
+              rS: 0.1015, rD: 0.076, RcEnd: 290, th0: 20 * Math.PI / 180, X2: 180, XS: -130, XD: 230, XL: 90, vmax: 40 };
+  FL2.w = FL2.rpm / 60 * 2 * Math.PI; FL2.vS = FL2.Q / (Math.PI * FL2.rS * FL2.rS); FL2.vD = FL2.Q / (Math.PI * FL2.rD * FL2.rD);
+  function Rc2(th) { var t = (th - FL2.th0) / (2 * Math.PI - FL2.th0); return 240 + 40 * t; }
+  function rCh2(th) { var t = (th - FL2.th0) / (2 * Math.PI - FL2.th0); return 22 + 40 * t; }
+  function spawnBB2(i, spread) {
+    fp.st[i] = 0; fp.x[i] = 640 - (spread ? Math.random() * 480 : 0);
+    fp.r[i] = Math.sqrt(Math.random()) * 90; fp.a[i] = Math.random() * Math.PI * 2; fp.v[i] = FL2.vS; fp.px[i] = NaN;
+  }
+  function impellerStep(i, xc, s, Theta) {   // shared by both stages; returns [X,Y,Z,v,exitTheta|null]
+    var rm = fp.r[i] / 1000, vr = FL2.Q / (2 * Math.PI * rm * FL2.b), cu = 0.55 * FL2.w * rm;
+    var v = Math.sqrt(vr * vr + cu * cu); fp.r[i] += vr * s;
+    var t2 = (fp.r[i] - FL2.rIn) / (FL2.rOut - FL2.rIn), ph = fp.a[i] + FL2.sweep * t2 + Theta;
+    var out = [xc + fp.b[i], fp.r[i] * Math.cos(ph), fp.r[i] * Math.sin(ph), v, null];
+    if (fp.r[i] >= FL2.rOut) { var th = ((ph % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI); if (th < FL2.th0) th = FL2.th0 + 0.01; out[4] = th; }
+    return out;
+  }
+  function enterImpeller(i, eyeAngle, Theta) {
+    var rel = ((eyeAngle - Theta) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI), ch = Math.floor(rel / (2 * Math.PI / 7));
+    fp.r[i] = FL2.rIn + 1; fp.a[i] = ch * 2 * Math.PI / 7 + 0.12 + Math.random() * 0.65; fp.b[i] = -12 + Math.random() * 24;
+  }
+  function voluteStep(i, xc, s) {
+    var th3 = fp.a[i], tt = (th3 - FL2.th0) / (2 * Math.PI - FL2.th0), v = 25 - 16 * tt;
+    th3 += (v * s) / Rc2(th3); fp.a[i] = th3;
+    var Rr = Rc2(th3) + fp.b[i] * rCh2(th3);
+    return [xc + fp.c[i] * rCh2(th3) * 0.9, Rr * Math.cos(th3), Rr * Math.sin(th3), v, th3 >= 2 * Math.PI];
+  }
+  function flowStepBB2(dt, Theta, kSlow) {
+    var N = FL2.N, s = 1000 * kSlow * dt, vX = 9;
+    for (var i = 0; i < N; i++) {
+      var st = fp.st[i], X, Y, Z, v, o;
+      if (st === 0) {                                   // suction pipe, down -Z
+        v = FL2.vS; fp.x[i] -= v * s;
+        X = FL2.XS + fp.r[i] * Math.cos(fp.a[i]); Y = fp.r[i] * Math.sin(fp.a[i]); Z = fp.x[i];
+        if (fp.x[i] <= 160) { fp.st[i] = 1; fp.d[i] = Y; fp.e[i] = 160; fp.c[i] = Math.random() * Math.PI * 2; fp.x[i] = FL2.XS; }
+      } else if (st === 1) {                            // suction chamber -> eye 1
+        v = 2.5; fp.x[i] += v * s;
+        var k1 = Math.max(0, Math.min(1, (fp.x[i] - FL2.XS) / (-52 - FL2.XS)));
+        X = fp.x[i]; Y = fp.d[i] + (62 * Math.cos(fp.c[i]) - fp.d[i]) * k1; Z = fp.e[i] + (62 * Math.sin(fp.c[i]) - fp.e[i]) * k1;
+        if (fp.x[i] >= -52) { fp.st[i] = 2; enterImpeller(i, fp.c[i], Theta); }
+      } else if (st === 2) {                            // impeller 1
+        o = impellerStep(i, 0, s, Theta); X = o[0]; Y = o[1]; Z = o[2]; v = o[3];
+        if (o[4] !== null) { fp.st[i] = 3; fp.a[i] = o[4]; fp.b[i] = Math.random() * 1.6 - 0.8; fp.c[i] = Math.random() * 1.6 - 0.8; }
+      } else if (st === 3) {                            // volute 1
+        o = voluteStep(i, 0, s); X = o[0]; Y = o[1]; Z = o[2]; v = o[3];
+        if (o[4]) { fp.st[i] = 4; fp.x[i] = 0; fp.b[i] *= 45; fp.c[i] *= 45; }
+      } else if (st === 4) {                            // throat 1 up
+        v = vX; fp.x[i] += v * s; X = fp.c[i]; Y = FL2.RcEnd + fp.b[i]; Z = fp.x[i];
+        if (fp.x[i] >= 330) { fp.st[i] = 5; fp.x[i] = 0; }
+      } else if (st === 5) {                            // crossover run +X
+        v = vX; fp.x[i] += v * s; X = fp.x[i]; Y = FL2.RcEnd + fp.b[i]; Z = 330 + fp.c[i];
+        if (fp.x[i] >= FL2.XL) { fp.st[i] = 6; fp.x[i] = 330; }
+      } else if (st === 6) {                            // down-leg
+        v = vX; fp.x[i] -= v * s; X = FL2.XL + fp.c[i]; Y = FL2.RcEnd + fp.b[i]; Z = fp.x[i];
+        if (fp.x[i] <= 130) { fp.st[i] = 7; fp.x[i] = FL2.RcEnd; }
+      } else if (st === 7) {                            // port toward the axis (-Y)
+        v = vX; fp.x[i] -= v * s; X = FL2.XL + 25 + fp.c[i] * 0.5; Y = fp.x[i]; Z = 115 + fp.b[i] * 0.5;
+        if (fp.x[i] <= 150) { fp.st[i] = 8; fp.d[i] = Y; fp.e[i] = Z; fp.c[i] = Math.random() * Math.PI * 2; fp.x[i] = X; }
+      } else if (st === 8) {                            // inlet chamber 2 -> eye 2
+        v = 2.5; fp.x[i] += v * s;
+        var k2 = Math.max(0, Math.min(1, (fp.x[i] - 110) / 55));
+        X = fp.x[i]; Y = fp.d[i] + (62 * Math.cos(fp.c[i]) - fp.d[i]) * k2; Z = fp.e[i] + (62 * Math.sin(fp.c[i]) - fp.e[i]) * k2;
+        if (fp.x[i] >= 165) { fp.st[i] = 9; enterImpeller(i, fp.c[i], Theta); }
+      } else if (st === 9) {                            // impeller 2
+        o = impellerStep(i, FL2.X2, s, Theta); X = o[0]; Y = o[1]; Z = o[2]; v = o[3];
+        if (o[4] !== null) { fp.st[i] = 10; fp.a[i] = o[4]; fp.b[i] = Math.random() * 1.6 - 0.8; fp.c[i] = Math.random() * 1.6 - 0.8; }
+      } else if (st === 10) {                           // volute 2
+        o = voluteStep(i, FL2.X2, s); X = o[0]; Y = o[1]; Z = o[2]; v = o[3];
+        if (o[4]) { fp.st[i] = 11; fp.x[i] = 0; fp.b[i] *= 45; fp.c[i] *= 45; }
+      } else if (st === 11) {                           // throat 2 up
+        v = vX; fp.x[i] += v * s; X = FL2.X2 + fp.c[i]; Y = FL2.RcEnd + fp.b[i]; Z = fp.x[i];
+        if (fp.x[i] >= 280) { fp.st[i] = 12; fp.x[i] = FL2.X2; }
+      } else if (st === 12) {                           // jog to the discharge nozzle
+        v = vX; fp.x[i] += v * s; X = fp.x[i]; Y = FL2.RcEnd + fp.b[i]; Z = 280 + fp.c[i];
+        if (fp.x[i] >= FL2.XD) { fp.st[i] = 13; fp.x[i] = 280; }
+      } else {                                          // discharge pipe up
+        v = FL2.vD + 1; fp.x[i] += v * s; X = FL2.XD + fp.c[i]; Y = FL2.RcEnd + fp.b[i]; Z = fp.x[i];
+        if (fp.x[i] > 640) { spawnBB2(i, false); continue; }
+      }
+      X += PIV.x; Z += PIV.z;
+      var px = fp.px[i], fresh = isNaN(px);
+      fSeg[i * 6] = fresh ? X : px; fSeg[i * 6 + 1] = fresh ? Y : fp.py[i]; fSeg[i * 6 + 2] = fresh ? Z : fp.pz[i];
+      fSeg[i * 6 + 3] = X; fSeg[i * 6 + 4] = Y; fSeg[i * 6 + 5] = Z;
+      fp.px[i] = X; fp.py[i] = Y; fp.pz[i] = Z;
+      fPos[i * 3] = X; fPos[i * 3 + 1] = Y; fPos[i * 3 + 2] = Z;
+      speedColor(v, fCol, i);
+      fSCol[i * 6] = fCol[i * 3]; fSCol[i * 6 + 1] = fCol[i * 3 + 1]; fSCol[i * 6 + 2] = fCol[i * 3 + 2];
+      fSCol[i * 6 + 3] = fCol[i * 3]; fSCol[i * 6 + 4] = fCol[i * 3 + 1]; fSCol[i * 6 + 5] = fCol[i * 3 + 2];
+    }
+    fGeoP.attributes.position.needsUpdate = true; fGeoP.attributes.color.needsUpdate = true;
+    fGeoL.attributes.position.needsUpdate = true; fGeoL.attributes.color.needsUpdate = true;
+    fGeoP.computeBoundingSphere(); fGeoL.computeBoundingSphere();
+  }
+
   /* ---- loop ---- */
   function resize() {
     var w = stage.clientWidth, h = stage.clientHeight;
@@ -587,7 +687,7 @@ canvas.pick{cursor:pointer}
     }
     if (spinning) cam.theta += dt * 0.35;
     if (running) { angle += dt * (+rpmI.value) / 60 * Math.PI * 2; Object.keys(spinGroups).forEach(function (k) { spinGroups[k].rotation.x = angle * (+k); }); }
-    if (state.flow && flowObj) { var showFlow = state.explode < 0.02; flowObj.visible = showFlow; if (showFlow && running) flowStep(dt, angle, (+rpmI.value) / FL.rpm); }
+    if (state.flow && flowObj) { var showFlow = state.explode < 0.02; flowObj.visible = showFlow; if (showFlow && running) (BB2 ? flowStepBB2 : flowStep)(dt, angle, (+rpmI.value) / (BB2 ? FL2.rpm : FL.rpm)); }
     if (playing) {
       var u = Math.min(1, (now - playT0) / 4000), s = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
       state.explode = playFrom + (playTo - playFrom) * s; exI.value = Math.round(state.explode * 100); exO.textContent = exI.value + "%"; applyExplode(); cam.dist = radius * (2.4 + state.explode * 1.1);
