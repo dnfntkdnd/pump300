@@ -160,7 +160,7 @@ canvas.pick{cursor:pointer}
 <div class="app">
   <header class="head">
     <h1><span class="big num" id="count">0</span><span>조각으로 펌프 한 대</span></h1>
-    <div class="sub"><b>원심펌프 · 6"×4" 엔드석션 · 부품 종류 96</b> &nbsp;·&nbsp; 클릭하면 이름과 역할, 슬라이더를 밀면 분해</div>
+    <div class="sub"><b id="subtitle">원심펌프 · 6"×4" 엔드석션 · 부품 종류 96</b> &nbsp;·&nbsp; 클릭하면 이름과 역할, 슬라이더를 밀면 분해</div>
     <div class="ctl">
       <div class="slider"><span class="lbl">분해</span>
         <input type="range" id="explode" min="0" max="100" value="0" aria-label="분해 정도">
@@ -224,6 +224,8 @@ canvas.pick{cursor:pointer}
     return;
   }
   var css = function (n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); };
+  if (D.subtitle) document.getElementById("subtitle").textContent = D.subtitle;
+  if (D.flow === false) document.getElementById("t-flow").hidden = true;
   var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /* ---- counter ---- */
