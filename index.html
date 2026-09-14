@@ -265,7 +265,7 @@ canvas.pick{cursor:pointer}
   var clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);   // section along Y (front→back)
 
   var parts = [], byKind = {}, state = { explode: 0, edges: true, ghost: false, xray: false, flow: false, isolate: null, selected: null, hover: null };
-  var XRAY = { casing: 0.07, casing_cover: 0.10, gland: 0.15, adaptor: 0.10, housing: 0.08, housing_cover: 0.12, motor_frame: 0.08, end_shield: 0.12, fan_cover: 0.10, guard: 0.10, tbox: 0.12, tbox_cover: 0.12, stator: 0.25, impeller: 0.35, throat_bushing: 0.3 };
+  var XRAY = { casing: 0.07, casing_cover: 0.10, suction_cover: 0.10, drive_cover: 0.10, housing_bracket: 0.10, gland: 0.15, adaptor: 0.10, housing: 0.08, housing_cover: 0.12, motor_frame: 0.08, end_shield: 0.12, fan_cover: 0.10, guard: 0.10, tbox: 0.12, tbox_cover: 0.12, stator: 0.25, impeller: 0.35, throat_bushing: 0.3 };
   var lo = D.lo, sp = D.span;
   var NO_EDGE = { brg_ball: 1, o_ring: 1, seal_spring: 1, anchor_bolt: 1 };
 
