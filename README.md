@@ -3,6 +3,7 @@
 Interactive 3D viewers:
 - OH2 (300조각): https://dnfntkdnd.github.io/pump300/
 - BB2 양흡입 (504조각): https://dnfntkdnd.github.io/pump300/bb2/
+- 메카니컬 씰 API 682 이중 카트리지 (112조각): https://dnfntkdnd.github.io/pump300/seal/
 
 개인 제작 합성 모델(clean-room synthetic). 임의 치수, 배관·플랜지 규격만 ASME 공개 표 사용.
 실제 제품·회사·프로젝트 자료가 아닙니다. 흐름 표시는 유선 모델이며 CFD가 아닙니다.
