@@ -6,6 +6,7 @@ Interactive 3D viewers:
 - 메카니컬 씰 API 682 이중 카트리지 (112조각): https://dnfntkdnd.github.io/pump300/seal/
 - NUCLEAR-WORLD 원전 지구본 (1,749기, GEM 자료 CC BY 4.0): https://dnfntkdnd.github.io/pump300/nuclear/
 - 일체형 기어 압축기 IGC 4단 (939조각, 공기 경로·온도): https://dnfntkdnd.github.io/pump300/igc/
+- 스크류 냉동기 800 RT (849조각, 냉매·냉수·냉각수 경로): https://dnfntkdnd.github.io/pump300/chiller/
 
 개인 제작 합성 모델(clean-room synthetic). 임의 치수, 배관·플랜지 규격만 ASME 공개 표 사용.
 실제 제품·회사·프로젝트 자료가 아닙니다. 흐름 표시는 유선 모델이며 CFD가 아닙니다.
